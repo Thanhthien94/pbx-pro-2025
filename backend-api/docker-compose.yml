@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # Backend API service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: asterisk-admin-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+      # Mount Asterisk config directory if needed
+      # - /etc/asterisk:/etc/asterisk:ro
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - MONGODB_URI=mongodb://mongodb:27017/asterisk-admin
+      - JWT_SECRET=${JWT_SECRET}
+      - AMI_HOST=${AMI_HOST}
+      - AMI_PORT=${AMI_PORT}
+      - AMI_USERNAME=${AMI_USERNAME}
+      - AMI_PASSWORD=${AMI_PASSWORD}
+    depends_on:
+      - mongodb
+    networks:
+      - asterisk-network
+
+  # MongoDB service
+  mongodb:
+    image: mongo:5
+    container_name: asterisk-admin-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    environment:
+      # For production, set username/password
+      # - MONGO_INITDB_ROOT_USERNAME=admin
+      # - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=asterisk-admin
+    networks:
+      - asterisk-network
+
+  # Frontend service (optional, can be built and served separately)
+  frontend:
+    build:
+      context: ../asterisk-admin-frontend
+      dockerfile: Dockerfile
+    container_name: asterisk-admin-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3000/api
+    depends_on:
+      - backend
+    networks:
+      - asterisk-network
+
+networks:
+  asterisk-network:
+    driver: bridge
+
+volumes:
+  mongodb-data:
