@@ -13,6 +13,7 @@ import { CdrModule } from './cdr/cdr.module';
 import { AsteriskModule } from './asterisk/asterisk.module';
 import { SipLoggerModule } from './sip-logger/sip-logger.module';
 import { CrmIntegrationModule } from './crm-integration/crm-integration.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { CrmIntegrationModule } from './crm-integration/crm-integration.module';
     AsteriskModule,
     SipLoggerModule,
     CrmIntegrationModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}
