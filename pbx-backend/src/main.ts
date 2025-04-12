@@ -13,7 +13,7 @@ async function bootstrap() {
 
   // Cấu hình CORS
   app.enableCors({
-    origin: configService.get<string>('cors.origin', '*'),
+    origin: '*', // Cho phép tất cả các origin
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
@@ -21,9 +21,9 @@ async function bootstrap() {
   // Cấu hình validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // Loại bỏ các trường không được định nghĩa trong DTO
-      forbidNonWhitelisted: true, // Báo lỗi khi gặp trường không được định nghĩa
-      transform: true, // Tự động chuyển đổi kiểu dữ liệu
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
     }),
   );
 
@@ -32,6 +32,7 @@ async function bootstrap() {
 
   await app.listen(port);
   console.log(`Ứng dụng đang chạy tại: http://localhost:${port}/api`);
+  console.log(`Xác thực đã được bypass (tắt)`);
 }
 
 bootstrap();

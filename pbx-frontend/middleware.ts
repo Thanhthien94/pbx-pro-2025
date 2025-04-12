@@ -26,14 +26,14 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/extensions/:path*',
-    '/trunks/:path*',
-    '/queues/:path*',
-    '/outbound-routes/:path*',
-    '/inbound-routes/:path*',
-    '/cdr/:path*',
-    '/system/:path*',
-    '/login'
+    // '/dashboard/:path*',
+    // '/extensions/:path*',
+    // '/trunks/:path*',
+    // '/queues/:path*',
+    // '/outbound-routes/:path*',
+    // '/inbound-routes/:path*',
+    // '/cdr/:path*',
+    // '/system/:path*',
+    // '/login'
   ],
 };

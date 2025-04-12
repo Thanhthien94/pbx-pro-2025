@@ -1,16 +1,21 @@
 flowchart TB
-    subgraph client["Frontend (React)"]
+    subgraph client["Frontend (Next.js)"]
         UI["Giao diện người dùng"]
         APIService["API Service"]
-        Router["React Router"]
-        Auth["Xác thực"]
+        Router["Next Router"]
+        ApiKeyAuth["Xác thực API Key"]
     end
     
-    subgraph server["Backend (Node.js)"]
+    subgraph server["Backend (NestJS)"]
         Express["Express API"]
         MongoDB[(MongoDB)]
         AMI["Asterisk Manager\nInterface"]
         Config["Xử lý cấu hình Asterisk"]
+        ApiKeyGuard["API Key Guard"]
+    end
+    
+    subgraph crm["External CRM"]
+        ApiKeyValidation["API Key Validation"]
     end
     
     subgraph asterisk["Asterisk PBX"]
@@ -21,7 +26,11 @@ flowchart TB
     
     UI --> Router
     UI --> APIService
-    APIService --> Express
+    APIService --> ApiKeyAuth
+    ApiKeyAuth --> Express
+    
+    Express --> ApiKeyGuard
+    ApiKeyGuard --> ApiKeyValidation
     
     Express --> MongoDB
     Express --> AMI
@@ -42,7 +51,7 @@ flowchart TB
         System["System"]
     end
     
-    Express --> endpoints
+    ApiKeyGuard --> endpoints
     
     subgraph frontend["React Components"]
         direction LR
@@ -65,11 +74,3 @@ flowchart TB
     CDRView -.-> CDR
     SystemMgmt -.-> System
     Dashboard -.-> System
-    
-    classDef serverClass fill:#f9f9f9,stroke:#333,stroke-width:1px;
-    classDef clientClass fill:#e6f7ff,stroke:#333,stroke-width:1px;
-    classDef asteriskClass fill:#ffef96,stroke:#333,stroke-width:1px;
-    
-    class client clientClass;
-    class server serverClass;
-    class asterisk asteriskClass;

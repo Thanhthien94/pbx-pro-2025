@@ -6,7 +6,7 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as AMI from 'asterisk-manager';
+import AMI from 'asterisk-manager';
 
 @Injectable()
 export class AsteriskService implements OnModuleInit, OnModuleDestroy {
