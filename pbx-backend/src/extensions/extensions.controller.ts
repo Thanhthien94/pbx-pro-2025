@@ -14,10 +14,10 @@ import {
 import { ExtensionsService } from './extensions.service';
 import { CreateExtensionDto } from './dto/create-extension.dto';
 import { UpdateExtensionDto } from './dto/update-extension.dto';
-import { ExtensionAuthGuard } from '../auth/guards/extension-auth.guard';
+import { ApiKeyGuard } from 'src/auth/guards/api-key.guard';
 
 @Controller('extensions')
-@UseGuards(ExtensionAuthGuard)
+@UseGuards(ApiKeyGuard)
 export class ExtensionsController {
   constructor(private readonly extensionsService: ExtensionsService) {}
 

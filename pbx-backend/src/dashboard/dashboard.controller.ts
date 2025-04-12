@@ -1,10 +1,10 @@
 // src/dashboard/dashboard.controller.ts
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
-import { ExtensionAuthGuard } from '../auth/guards/extension-auth.guard';
+import { ApiKeyGuard } from 'src/auth/guards/api-key.guard';
 
 @Controller('dashboard')
-@UseGuards(ExtensionAuthGuard)
+@UseGuards(ApiKeyGuard)
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 

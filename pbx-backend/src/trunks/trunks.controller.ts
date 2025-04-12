@@ -14,10 +14,10 @@ import {
 import { TrunksService } from './trunks.service';
 import { CreateTrunkDto } from './dto/create-trunk.dto';
 import { UpdateTrunkDto } from './dto/update-trunk.dto';
-import { ExtensionAuthGuard } from '../auth/guards/extension-auth.guard';
+import { ApiKeyGuard } from 'src/auth/guards/api-key.guard';
 
 @Controller('trunks')
-@UseGuards(ExtensionAuthGuard)
+@UseGuards(ApiKeyGuard)
 export class TrunksController {
   constructor(private readonly trunksService: TrunksService) {}
 

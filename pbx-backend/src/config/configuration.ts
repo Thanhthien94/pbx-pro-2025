@@ -4,6 +4,7 @@ export default () => ({
   database: {
     uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/asterisk-admin',
   },
+  API_KEY: process.env.API_KEY || 'pbx-admin-secret-key',
   asterisk: {
     configDir: process.env.ASTERISK_CONFIG_DIR || '/etc/asterisk',
     ami: {

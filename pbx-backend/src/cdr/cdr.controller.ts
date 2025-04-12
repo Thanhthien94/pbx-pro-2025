@@ -9,10 +9,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CDRService } from './cdr.service';
-import { ExtensionAuthGuard } from '../auth/guards/extension-auth.guard';
+import { ApiKeyGuard } from 'src/auth/guards/api-key.guard';
 
 @Controller('cdr')
-@UseGuards(ExtensionAuthGuard)
+@UseGuards(ApiKeyGuard)
 export class CDRController {
   constructor(private readonly cdrService: CDRService) {}
 

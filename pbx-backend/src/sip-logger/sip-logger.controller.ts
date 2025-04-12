@@ -12,10 +12,10 @@ import {
 } from '@nestjs/common';
 import { SipLoggerService } from './sip-logger.service';
 import { CreateSipLogDto } from './dto/create-sip-log.dto';
-import { ExtensionAuthGuard } from 'src/auth/guards/extension-auth.guard';
+import { ApiKeyGuard } from 'src/auth/guards/api-key.guard';
 
 @Controller('sip-logs')
-@UseGuards(ExtensionAuthGuard)
+@UseGuards(ApiKeyGuard)
 export class SipLoggerController {
   constructor(private readonly sipLoggerService: SipLoggerService) {}
 
