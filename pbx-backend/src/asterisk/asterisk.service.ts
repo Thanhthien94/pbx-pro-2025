@@ -6,12 +6,13 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import AMI from 'asterisk-manager';
-
+import AmiClient from 'asterisk-manager';
+import { AmiResponse } from './interfaces/ami-response.interface';
+import { OriginateParams } from './interfaces/originate-params.interface';
 @Injectable()
 export class AsteriskService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AsteriskService.name);
-  private ami: any;
+  private ami: any | null = null;
   private connected = false;
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private reconnectAttempts = 0;
@@ -19,15 +20,15 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
 
   constructor(private configService: ConfigService) {}
 
-  onModuleInit() {
+  onModuleInit(): void {
     this.connect();
   }
 
-  onModuleDestroy() {
+  onModuleDestroy(): void {
     this.disconnect();
   }
 
-  private connect() {
+  private connect(): void {
     const host = this.configService.get<string>(
       'asterisk.ami.host',
       'localhost',
@@ -45,7 +46,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`Đang kết nối tới Asterisk AMI: ${host}:${port}`);
 
     try {
-      this.ami = new AMI(port, host, username, password, true);
+      this.ami = AmiClient(port, host, username, password, true);
 
       this.ami.keepConnected();
 
@@ -61,19 +62,20 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
         this.scheduleReconnect();
       });
 
-      this.ami.on('error', (err) => {
-        this.logger.error(`Lỗi AMI: ${err}`);
+      this.ami.on('error', (err: Error) => {
+        this.logger.error(`Lỗi AMI: ${err.message}`);
       });
 
       // Đăng ký nhận sự kiện từ Asterisk
       this.registerEvents();
     } catch (error) {
-      this.logger.error(`Lỗi khi khởi tạo kết nối AMI: ${error.message}`);
+      const err = error as Error;
+      this.logger.error(`Lỗi khi khởi tạo kết nối AMI: ${err.message}`);
       this.scheduleReconnect();
     }
   }
 
-  private scheduleReconnect() {
+  private scheduleReconnect(): void {
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
     }
@@ -95,7 +97,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private disconnect() {
+  private disconnect(): void {
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
@@ -108,18 +110,18 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private registerEvents() {
+  private registerEvents(): void {
     if (!this.ami) return;
 
     // Đăng ký nhận các sự kiện từ Asterisk
-    this.ami.on('managerevent', (evt) => {
+    this.ami.on('managerevent', (evt: Record<string, any>) => {
       if (evt.event === 'Reload') {
         this.logger.log(`Asterisk đã reload: ${evt.message}`);
       }
     });
 
     // Đăng ký sự kiện cuộc gọi để ghi log
-    this.ami.on('managerevent', (evt) => {
+    this.ami.on('managerevent', (evt: Record<string, any>) => {
       if (['Newchannel', 'Hangup', 'Dial', 'Bridge'].includes(evt.event)) {
         this.logger.debug(`Call Event: ${evt.event} - Channel: ${evt.channel}`);
       }
@@ -130,7 +132,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
     return this.connected;
   }
 
-  async executeCommand(command: string): Promise<any> {
+  async executeCommand(command: string): Promise<AmiResponse> {
     return new Promise((resolve, reject) => {
       if (!this.connected) {
         reject(new Error('Không có kết nối tới Asterisk AMI'));
@@ -142,7 +144,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
           Action: 'Command',
           Command: command,
         },
-        (err, res) => {
+        (err: Error | null, res: AmiResponse) => {
           if (err) {
             reject(err);
           } else {
@@ -153,7 +155,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async getStatus(): Promise<any> {
+  async getStatus(): Promise<AmiResponse> {
     return new Promise((resolve, reject) => {
       if (!this.connected) {
         reject(new Error('Không có kết nối tới Asterisk AMI'));
@@ -164,7 +166,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
         {
           Action: 'CoreStatus',
         },
-        (err, res) => {
+        (err: Error | null, res: AmiResponse) => {
           if (err) {
             reject(err);
           } else {
@@ -175,7 +177,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async getChannels(): Promise<any> {
+  async getChannels(): Promise<AmiResponse> {
     return new Promise((resolve, reject) => {
       if (!this.connected) {
         reject(new Error('Không có kết nối tới Asterisk AMI'));
@@ -186,7 +188,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
         {
           Action: 'CoreShowChannels',
         },
-        (err, res) => {
+        (err: Error | null, res: AmiResponse) => {
           if (err) {
             reject(err);
           } else {
@@ -197,7 +199,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async getExtensionStatus(extension: string): Promise<any> {
+  async getExtensionStatus(extension: string): Promise<AmiResponse> {
     return new Promise((resolve, reject) => {
       if (!this.connected) {
         reject(new Error('Không có kết nối tới Asterisk AMI'));
@@ -210,7 +212,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
           Exten: extension,
           Context: 'internal',
         },
-        (err, res) => {
+        (err: Error | null, res: AmiResponse) => {
           if (err) {
             reject(err);
           } else {
@@ -221,14 +223,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async originateCall(params: {
-    channel: string;
-    extension: string;
-    context?: string;
-    priority?: number;
-    variables?: Record<string, string>;
-    callerid?: string;
-  }): Promise<any> {
+  async originateCall(params: OriginateParams): Promise<AmiResponse> {
     return new Promise((resolve, reject) => {
       if (!this.connected) {
         reject(new Error('Không có kết nối tới Asterisk AMI'));
@@ -244,7 +239,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
         callerid,
       } = params;
 
-      const actionParams: any = {
+      const actionParams: Record<string, any> = {
         Action: 'Originate',
         Channel: channel,
         Exten: extension,
@@ -263,7 +258,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      this.ami.action(actionParams, (err, res) => {
+      this.ami.action(actionParams, (err: Error | null, res: AmiResponse) => {
         if (err) {
           reject(err);
         } else {
@@ -273,7 +268,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async hangupChannel(channel: string): Promise<any> {
+  async hangupChannel(channel: string): Promise<AmiResponse> {
     return new Promise((resolve, reject) => {
       if (!this.connected) {
         reject(new Error('Không có kết nối tới Asterisk AMI'));
@@ -285,7 +280,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
           Action: 'Hangup',
           Channel: channel,
         },
-        (err, res) => {
+        (err: Error | null, res: AmiResponse) => {
           if (err) {
             reject(err);
           } else {
@@ -296,14 +291,14 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async reloadModule(module?: string): Promise<any> {
+  async reloadModule(module?: string): Promise<AmiResponse> {
     return new Promise((resolve, reject) => {
       if (!this.connected) {
         reject(new Error('Không có kết nối tới Asterisk AMI'));
         return;
       }
 
-      const actionParams: any = {
+      const actionParams: Record<string, any> = {
         Action: 'Reload',
       };
 
@@ -311,7 +306,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
         actionParams.Module = module;
       }
 
-      this.ami.action(actionParams, (err, res) => {
+      this.ami.action(actionParams, (err: Error | null, res: AmiResponse) => {
         if (err) {
           reject(err);
         } else {
@@ -321,7 +316,7 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async getActivePeers(): Promise<any> {
+  async getActivePeers(): Promise<AmiResponse> {
     return new Promise((resolve, reject) => {
       if (!this.connected) {
         reject(new Error('Không có kết nối tới Asterisk AMI'));
@@ -332,11 +327,10 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
         {
           Action: 'SIPpeers',
         },
-        (err, res) => {
+        (err: Error | null, res: AmiResponse) => {
           if (err) {
             reject(err);
           } else {
-            // Xử lý danh sách peer và trả về
             resolve(res);
           }
         },
@@ -351,7 +345,8 @@ export class AsteriskService implements OnModuleInit, OnModuleDestroy {
       await this.executeCommand(command);
       return true;
     } catch (error) {
-      this.logger.error(`Lỗi khi tạo cấu hình SIP: ${error.message}`);
+      const err = error as Error;
+      this.logger.error(`Lỗi khi tạo cấu hình SIP: ${err.message}`);
       return false;
     }
   }

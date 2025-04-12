@@ -98,6 +98,10 @@ export class ExtensionsService {
       .findByIdAndUpdate(id, updateExtensionDto, { new: true })
       .exec();
 
+    if (!updatedExtension) {
+      throw new NotFoundException(`Không tìm thấy extension với id ${id}`);
+    }
+
     // Cập nhật cấu hình Asterisk
     await this.updateAsteriskConfig();
 
@@ -212,88 +216,11 @@ allow=${ext.allow || 'ulaw,alaw,g722'}
       await this.asteriskService.reloadModule('sip');
       this.logger.log('Đã reload module SIP trong Asterisk');
     } catch (error) {
-      this.logger.error(`Lỗi khi cập nhật cấu hình Asterisk: ${error.message}`);
+      const err = error as Error;
+      this.logger.error(`Lỗi khi cập nhật cấu hình Asterisk: ${err.message}`);
       throw error;
     }
   }
 
-  private updateExtensionsConf(extensions: Extension[]): void {
-    try {
-      // Đọc file extensions.conf nếu tồn tại
-      const extensionsConfPath = path.join(this.configDir, 'extensions.conf');
-      let extensionsConfContent = '';
-
-      if (fs.existsSync(extensionsConfPath)) {
-        extensionsConfContent = fs.readFileSync(extensionsConfPath, 'utf8');
-      } else {
-        // Nếu file không tồn tại, tạo file mặc định
-        extensionsConfContent = `[general]
-static=yes
-writeprotect=no
-autofallthrough=yes
-extenpatternmatchnew=yes
-clearglobalvars=no
-
-[globals]
-CONSOLE=Console/dsp
-IAXINFO=guest
-TRUNK=DAHDI/G2
-TRUNKMSD=1
-
-[default]
-exten => s,1,Verbose(1,Unrouted call handler)
-exten => s,n,Answer()
-exten => s,n,Wait(1)
-exten => s,n,Playback(tt-weasels)
-exten => s,n,Hangup()
-
-exten => _.,1,Verbose(1,Catch-all extension)
-exten => _.,n,Answer()
-exten => _.,n,Wait(1)
-exten => _.,n,Playback(invalid)
-exten => _.,n,Hangup()
-
-[from-trunk]
-; Inbound calls from trunks will be handled by this context
-exten => _X.,1,NoOp(Inbound call from trunk)
-exten => _X.,n,Set(CALLERID(name)=${CALLERID(num)})
-exten => _X.,n,Goto(internal,100,1)  ; Redirect to the operator
-`;
-      }
-
-      // Kiểm tra xem context internal đã tồn tại chưa
-      if (!extensionsConfContent.includes('[internal]')) {
-        // Thêm context internal
-        extensionsConfContent += `
-[internal]
-; Internal extensions pattern
-exten => _1XX,1,NoOp(Dialing extension ${EXTEN})
-exten => _1XX,n,Dial(SIP/${EXTEN},20)
-exten => _1XX,n,Hangup()
-
-; Voicemail access
-exten => *98,1,NoOp(Voicemail)
-exten => *98,n,VoiceMailMain(${CALLERID(num)}@default)
-exten => *98,n,Hangup()
-
-; Echo Test
-exten => *43,1,NoOp(Echo Test)
-exten => *43,n,Answer()
-exten => *43,n,Playback(demo-echotest)
-exten => *43,n,Echo()
-exten => *43,n,Playback(demo-echodone)
-exten => *43,n,Hangup()
-`;
-      }
-
-      // Ghi file extensions.conf
-      fs.writeFileSync(extensionsConfPath, extensionsConfContent);
-      this.logger.log(`Đã cập nhật file ${extensionsConfPath}`);
-    } catch (error) {
-      this.logger.error(
-        `Lỗi khi cập nhật file extensions.conf: ${error.message}`,
-      );
-      throw error;
-    }
-  }
+  private updateExtensionsConf(): void {}
 }

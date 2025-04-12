@@ -19,9 +19,4 @@ export default () => ({
     port: parseInt(process.env.HOMER_PORT || '9060', 10),
     captureId: parseInt(process.env.HOMER_CAPTURE_ID || '2001', 10),
   },
-  crm: {
-    apiUrl: process.env.CRM_API_URL || 'http://crm-api-service/api',
-    validationEndpoint:
-      process.env.CRM_VALIDATION_ENDPOINT || '/validate-api-key',
-  },
 });

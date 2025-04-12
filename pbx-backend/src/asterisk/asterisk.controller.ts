@@ -7,73 +7,76 @@ import {
   HttpException,
   HttpStatus,
   UseGuards,
-  Query,
   Param,
 } from '@nestjs/common';
 import { AsteriskService } from './asterisk.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { BypassAuthGuard } from '../auth/guards/bypass-auth.guard';
+import { AmiResponse } from './interfaces/ami-response.interface';
+import { OriginateParams } from './interfaces/originate-params.interface';
 
 @Controller('asterisk')
-@UseGuards(JwtAuthGuard)
+@UseGuards(BypassAuthGuard)
 export class AsteriskController {
   constructor(private readonly asteriskService: AsteriskService) {}
 
   @Get('status')
-  async getStatus() {
+  async getStatus(): Promise<AmiResponse> {
     try {
       return await this.asteriskService.getStatus();
     } catch (error) {
+      const err = error as Error;
       throw new HttpException(
-        `Không thể lấy trạng thái Asterisk: ${error.message}`,
+        `Không thể lấy trạng thái Asterisk: ${err.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   @Get('channels')
-  async getChannels() {
+  async getChannels(): Promise<AmiResponse> {
     try {
       return await this.asteriskService.getChannels();
     } catch (error) {
+      const err = error as Error;
       throw new HttpException(
-        `Không thể lấy danh sách kênh: ${error.message}`,
+        `Không thể lấy danh sách kênh: ${err.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   @Get('extension/:extension/status')
-  async getExtensionStatus(@Param('extension') extension: string) {
+  async getExtensionStatus(
+    @Param('extension') extension: string,
+  ): Promise<AmiResponse> {
     try {
       return await this.asteriskService.getExtensionStatus(extension);
     } catch (error) {
+      const err = error as Error;
       throw new HttpException(
-        `Không thể lấy trạng thái extension: ${error.message}`,
+        `Không thể lấy trạng thái extension: ${err.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   @Get('peers')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  async getActivePeers() {
+  async getActivePeers(): Promise<AmiResponse> {
     try {
       return await this.asteriskService.getActivePeers();
     } catch (error) {
+      const err = error as Error;
       throw new HttpException(
-        `Không thể lấy danh sách SIP peers: ${error.message}`,
+        `Không thể lấy danh sách SIP peers: ${err.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   @Post('cli')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  async executeCliCommand(@Body('command') command: string) {
+  async executeCliCommand(
+    @Body('command') command: string,
+  ): Promise<AmiResponse> {
     if (!command) {
       throw new HttpException(
         'Lệnh không được để trống',
@@ -84,39 +87,29 @@ export class AsteriskController {
     try {
       return await this.asteriskService.executeCommand(command);
     } catch (error) {
+      const err = error as Error;
       throw new HttpException(
-        `Không thể thực thi lệnh: ${error.message}`,
+        `Không thể thực thi lệnh: ${err.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   @Post('reload')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  async reloadModule(@Body('module') module?: string) {
+  async reloadModule(@Body('module') module?: string): Promise<AmiResponse> {
     try {
       return await this.asteriskService.reloadModule(module);
     } catch (error) {
+      const err = error as Error;
       throw new HttpException(
-        `Không thể tải lại module: ${error.message}`,
+        `Không thể tải lại module: ${err.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   @Post('originate')
-  async originateCall(
-    @Body()
-    params: {
-      channel: string;
-      extension: string;
-      context?: string;
-      priority?: number;
-      variables?: Record<string, string>;
-      callerid?: string;
-    },
-  ) {
+  async originateCall(@Body() params: OriginateParams): Promise<AmiResponse> {
     if (!params.channel || !params.extension) {
       throw new HttpException(
         'Channel và Extension không được để trống',
@@ -127,15 +120,16 @@ export class AsteriskController {
     try {
       return await this.asteriskService.originateCall(params);
     } catch (error) {
+      const err = error as Error;
       throw new HttpException(
-        `Không thể thực hiện cuộc gọi: ${error.message}`,
+        `Không thể thực hiện cuộc gọi: ${err.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   @Post('hangup')
-  async hangupChannel(@Body('channel') channel: string) {
+  async hangupChannel(@Body('channel') channel: string): Promise<AmiResponse> {
     if (!channel) {
       throw new HttpException(
         'Channel không được để trống',
@@ -146,8 +140,9 @@ export class AsteriskController {
     try {
       return await this.asteriskService.hangupChannel(channel);
     } catch (error) {
+      const err = error as Error;
       throw new HttpException(
-        `Không thể ngắt kênh: ${error.message}`,
+        `Không thể ngắt kênh: ${err.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

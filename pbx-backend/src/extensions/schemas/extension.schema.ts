@@ -22,16 +22,16 @@ export class Extension {
   host: string;
 
   @Prop()
-  callGroup: string;
+  callGroup?: string;
 
   @Prop()
-  pickupGroup: string;
+  pickupGroup?: string;
 
   @Prop()
-  mailbox: string;
+  mailbox?: string;
 
   @Prop()
-  email: string;
+  email?: string;
 
   @Prop({ default: 'rfc2833', enum: ['rfc2833', 'info', 'inband', 'auto'] })
   dtmfMode: string;
