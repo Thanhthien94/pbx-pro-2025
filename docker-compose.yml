@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # MongoDB service
+  mongodb:
+    image: mongo:latest
+    container_name: pbx_mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - pbx_network
+
+  # Backend NestJS Application
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pbx_backend
+    restart: always
+    depends_on:
+      - mongodb
+      - asterisk
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DATABASE}?authSource=admin
+      - ASTERISK_HOST=asterisk
+      - ASTERISK_ARI_PORT=8088
+      - ASTERISK_ARI_USERNAME=${ASTERISK_ARI_USERNAME}
+      - ASTERISK_ARI_PASSWORD=${ASTERISK_ARI_PASSWORD}
+      - ASTERISK_AMI_PORT=5038
+      - ASTERISK_AMI_USERNAME=${ASTERISK_AMI_USERNAME}
+      - ASTERISK_AMI_PASSWORD=${ASTERISK_AMI_PASSWORD}
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - pbx_network
+
+  # Frontend NextJS Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pbx_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://backend:3000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - pbx_network
+
+  # Asterisk PBX
+  asterisk:
+    build:
+      context: ./asterisk
+      dockerfile: Dockerfile
+    container_name: pbx_asterisk
+    restart: always
+    ports:
+      - "5060:5060/udp"     # SIP
+      - "5060:5060/tcp"     # SIP
+      - "10000-10100:10000-10100/udp"  # RTP
+      - "8088:8088"         # ARI
+      - "5038:5038"         # AMI
+    volumes:
+      - ./asterisk/config:/etc/asterisk
+      - asterisk_sounds:/var/lib/asterisk/sounds
+      - asterisk_spool:/var/spool/asterisk
+    networks:
+      - pbx_network
+
+  # HEPlify SIP Capture
+  heplify:
+    image: sipcapture/heplify-server:latest
+    container_name: pbx_heplify
+    restart: always
+    depends_on:
+      - mongodb
+    ports:
+      - "9060:9060/udp"     # HEP Capture
+      - "9060:9060/tcp"     # HEP Capture
+      - "9080:9080"         # UI
+    environment:
+      - HEPLIFYSERVER_DBDRIVER=mongodb
+      - HEPLIFYSERVER_DBADDR=mongodb:27017
+      - HEPLIFYSERVER_DBUSER=${MONGO_USERNAME}
+      - HEPLIFYSERVER_DBPASS=${MONGO_PASSWORD}
+      - HEPLIFYSERVER_DBNAME=${MONGO_DATABASE}
+      - HEPLIFYSERVER_LOGLVL=info
+      - HEPLIFYSERVER_LOGSTDOUT=true
+    networks:
+      - pbx_network
+
+  # HEPlify Agent (for Asterisk)
+  heplify-agent:
+    image: sipcapture/heplify:latest
+    container_name: pbx_heplify_agent
+    restart: always
+    depends_on:
+      - heplify
+      - asterisk
+    command: -i any -t udp -m SIPARRAY -hs heplify:9060
+    network_mode: "service:asterisk"
+
+networks:
+  pbx_network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  asterisk_sounds:
+  asterisk_spool:
