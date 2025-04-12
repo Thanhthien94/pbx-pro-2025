@@ -10,12 +10,12 @@ import {
   Param,
 } from '@nestjs/common';
 import { AsteriskService } from './asterisk.service';
-import { BypassAuthGuard } from '../auth/guards/bypass-auth.guard';
+import { ExtensionAuthGuard } from '../auth/guards/extension-auth.guard';
 import { AmiResponse } from './interfaces/ami-response.interface';
 import { OriginateParams } from './interfaces/originate-params.interface';
 
 @Controller('asterisk')
-@UseGuards(BypassAuthGuard)
+@UseGuards(ExtensionAuthGuard)
 export class AsteriskController {
   constructor(private readonly asteriskService: AsteriskService) {}
 

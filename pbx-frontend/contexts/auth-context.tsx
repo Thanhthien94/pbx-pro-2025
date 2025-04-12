@@ -1,89 +1,96 @@
 // contexts/auth-context.tsx
-'use client';
+"use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
 
-// Định nghĩa kiểu dữ liệu người dùng
-interface User {
-  id: string;
+// Định nghĩa kiểu dữ liệu extension
+interface Extension {
+  _id: string;
+  extension: string;
   name: string;
-  email: string;
-  role: string;
 }
 
 interface AuthContextType {
-  user: User | null;
+  extension: Extension | null;
   isLoading: boolean;
-  login: () => void;
+  login: (extensionId: string, secret: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }
 
-// Tạo một user mặc định
-const defaultUser: User = {
-  id: '1',
-  name: 'Admin User',
-  email: 'admin@example.com',
-  role: 'admin',
-};
-
 const AuthContext = createContext<AuthContextType>({
-  user: null,
+  extension: null,
   isLoading: true,
-  login: () => {},
+  login: () => Promise.resolve(),
   logout: () => {},
   isAuthenticated: false,
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [extension, setExtension] = useState<Extension | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    // Kiểm tra xem đã có user trong localStorage chưa
-    const storedUser = localStorage.getItem('user');
-    
-    if (storedUser) {
+    // Kiểm tra xem đã có extension trong localStorage chưa
+    const storedExtension = localStorage.getItem("extension");
+
+    if (storedExtension) {
       try {
-        setUser(JSON.parse(storedUser));
+        setExtension(JSON.parse(storedExtension));
       } catch (error) {
-        console.error('Failed to parse stored user:', error);
-        // Nếu có lỗi, đặt user mặc định
-        setUser(defaultUser);
-        localStorage.setItem('user', JSON.stringify(defaultUser));
+        console.error("Failed to parse stored extension:", error);
+        localStorage.removeItem("extension");
       }
-    } else {
-      // Nếu chưa có, đặt user mặc định
-      setUser(defaultUser);
-      localStorage.setItem('user', JSON.stringify(defaultUser));
     }
-    
+
     setIsLoading(false);
   }, []);
 
-  const login = () => {
-    // Luôn đăng nhập thành công với user mặc định
-    setUser(defaultUser);
-    localStorage.setItem('user', JSON.stringify(defaultUser));
-    router.push('/dashboard');
+  const login = async (extensionId: string, secret: string) => {
+    try {
+      // Gọi API xác thực extension
+      const response = await axios.post("/api/auth/verify-extension", {
+        extension: extensionId,
+        secret,
+      });
+
+      const data = response.data;
+
+      if (data.valid) {
+        // Lưu thông tin extension
+        setExtension(data.extension);
+        localStorage.setItem("extension", JSON.stringify(data.extension));
+        localStorage.setItem("extension-id", extensionId);
+        localStorage.setItem("extension-secret", secret);
+        router.push("/dashboard");
+      } else {
+        throw new Error("Thông tin extension không hợp lệ");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      throw error;
+    }
   };
 
   const logout = () => {
-    localStorage.removeItem('user');
-    setUser(null);
-    router.push('/login');
+    localStorage.removeItem("extension");
+    localStorage.removeItem("extension-id");
+    localStorage.removeItem("extension-secret");
+    setExtension(null);
+    router.push("/login");
   };
 
   return (
     <AuthContext.Provider
       value={{
-        user,
+        extension,
         isLoading,
         login,
         logout,
-        isAuthenticated: !!user,
+        isAuthenticated: !!extension,
       }}
     >
       {children}

@@ -1,25 +1,9 @@
+// lib/api.ts
 import axios from "axios";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
 
-export interface LoginCredentials {
-  username: string;
-  password: string;
-}
-
-export interface User {
-  id: string;
-  username: string;
-  name: string;
-  email: string;
-  role: string;
-}
-
-export interface AuthResponse {
-  token: string;
-  user: User;
-}
-
+// Định nghĩa các kiểu dữ liệu
 export interface Extension {
   _id?: string;
   extension: string;
@@ -134,7 +118,7 @@ export interface DashboardData {
   counts: DashboardCounts;
 }
 
-// Create the Axios instance
+// Tạo instance axios
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -142,15 +126,15 @@ const api = axios.create({
   },
 });
 
-// Add request interceptor to include auth token
+// Thêm interceptor để đưa extension ID và secret vào header
 api.interceptors.request.use(
   (config) => {
-    // Get token from localStorage
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const extensionId = localStorage.getItem("extension-id");
+    const extensionSecret = localStorage.getItem("extension-secret");
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (extensionId && extensionSecret) {
+      config.headers["X-Extension-Id"] = extensionId;
+      config.headers["X-Extension-Secret"] = extensionSecret;
     }
 
     return config;
@@ -160,17 +144,18 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor to handle auth errors
+// Thêm interceptor để xử lý lỗi xác thực
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Handle 401 Unauthorized response
     if (error.response && error.response.status === 401) {
-      // Clear token and user data
+      // Xóa thông tin extension
+      localStorage.removeItem("extension");
+      localStorage.removeItem("extension-id");
+      localStorage.removeItem("extension-secret");
+
+      // Chuyển về trang đăng nhập
       if (typeof window !== "undefined") {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        // Redirect to login page
         window.location.href = "/login";
       }
     }
@@ -180,10 +165,14 @@ api.interceptors.response.use(
 );
 
 // Auth API
-export const login = async (
-  credentials: LoginCredentials
-): Promise<AuthResponse> => {
-  const response = await api.post<AuthResponse>("/auth/login", credentials);
+export const verifyExtension = async (
+  extension: string,
+  secret: string
+): Promise<any> => {
+  const response = await api.post("/auth/verify-extension", {
+    extension,
+    secret,
+  });
   return response.data;
 };
 
@@ -215,7 +204,7 @@ export const updateExtension = async (
   id: string,
   extension: Extension
 ): Promise<Extension> => {
-  const response = await api.put<Extension>(`/extensions/${id}`, extension);
+  const response = await api.patch<Extension>(`/extensions/${id}`, extension);
   return response.data;
 };
 
@@ -240,7 +229,7 @@ export const createTrunk = async (trunk: Trunk): Promise<Trunk> => {
 };
 
 export const updateTrunk = async (id: string, trunk: Trunk): Promise<Trunk> => {
-  const response = await api.put<Trunk>(`/trunks/${id}`, trunk);
+  const response = await api.patch<Trunk>(`/trunks/${id}`, trunk);
   return response.data;
 };
 
@@ -265,7 +254,7 @@ export const createQueue = async (queue: Queue): Promise<Queue> => {
 };
 
 export const updateQueue = async (id: string, queue: Queue): Promise<Queue> => {
-  const response = await api.put<Queue>(`/queues/${id}`, queue);
+  const response = await api.patch<Queue>(`/queues/${id}`, queue);
   return response.data;
 };
 
@@ -273,21 +262,93 @@ export const deleteQueue = async (id: string): Promise<void> => {
   await api.delete(`/queues/${id}`);
 };
 
+export const getQueueStatus = async (name: string): Promise<any> => {
+  const response = await api.get(`/queues/${name}/status`);
+  return response.data;
+};
+
+export const getAllQueueStatuses = async (): Promise<any> => {
+  const response = await api.get("/queues/status");
+  return response.data;
+};
+
+export const addQueueMember = async (
+  id: string,
+  member: string
+): Promise<Queue> => {
+  const response = await api.post<Queue>(`/queues/${id}/members`, { member });
+  return response.data;
+};
+
+export const removeQueueMember = async (
+  id: string,
+  member: string
+): Promise<Queue> => {
+  const response = await api.delete<Queue>(`/queues/${id}/members/${member}`);
+  return response.data;
+};
+
+export const pauseQueueMember = async (
+  name: string,
+  member: string,
+  reason?: string
+): Promise<any> => {
+  const response = await api.post(`/queues/${name}/members/${member}/pause`, {
+    reason,
+  });
+  return response.data;
+};
+
+export const unpauseQueueMember = async (
+  name: string,
+  member: string
+): Promise<any> => {
+  const response = await api.post(`/queues/${name}/members/${member}/unpause`);
+  return response.data;
+};
+
+export const addDynamicQueueMember = async (
+  name: string,
+  member: string,
+  penalty?: number
+): Promise<any> => {
+  const response = await api.post(
+    `/queues/${name}/members/${member}/dynamic-add`,
+    { penalty }
+  );
+  return response.data;
+};
+
+export const removeDynamicQueueMember = async (
+  name: string,
+  member: string
+): Promise<any> => {
+  const response = await api.delete(
+    `/queues/${name}/members/${member}/dynamic-remove`
+  );
+  return response.data;
+};
+
+export const resetQueueStats = async (name: string): Promise<any> => {
+  const response = await api.post(`/queues/${name}/reset-stats`);
+  return response.data;
+};
+
 // Outbound Routes API
 export const getOutboundRoutes = async (): Promise<OutboundRoute[]> => {
-  const response = await api.get<OutboundRoute[]>("/outbound-routes");
+  const response = await api.get<OutboundRoute[]>("/routes/outbound");
   return response.data;
 };
 
 export const getOutboundRoute = async (id: string): Promise<OutboundRoute> => {
-  const response = await api.get<OutboundRoute>(`/outbound-routes/${id}`);
+  const response = await api.get<OutboundRoute>(`/routes/outbound/${id}`);
   return response.data;
 };
 
 export const createOutboundRoute = async (
   route: OutboundRoute
 ): Promise<OutboundRoute> => {
-  const response = await api.post<OutboundRoute>("/outbound-routes", route);
+  const response = await api.post<OutboundRoute>("/routes/outbound", route);
   return response.data;
 };
 
@@ -295,32 +356,32 @@ export const updateOutboundRoute = async (
   id: string,
   route: OutboundRoute
 ): Promise<OutboundRoute> => {
-  const response = await api.put<OutboundRoute>(
-    `/outbound-routes/${id}`,
+  const response = await api.patch<OutboundRoute>(
+    `/routes/outbound/${id}`,
     route
   );
   return response.data;
 };
 
 export const deleteOutboundRoute = async (id: string): Promise<void> => {
-  await api.delete(`/outbound-routes/${id}`);
+  await api.delete(`/routes/outbound/${id}`);
 };
 
 // Inbound Routes API
 export const getInboundRoutes = async (): Promise<InboundRoute[]> => {
-  const response = await api.get<InboundRoute[]>("/inbound-routes");
+  const response = await api.get<InboundRoute[]>("/routes/inbound");
   return response.data;
 };
 
 export const getInboundRoute = async (id: string): Promise<InboundRoute> => {
-  const response = await api.get<InboundRoute>(`/inbound-routes/${id}`);
+  const response = await api.get<InboundRoute>(`/routes/inbound/${id}`);
   return response.data;
 };
 
 export const createInboundRoute = async (
   route: InboundRoute
 ): Promise<InboundRoute> => {
-  const response = await api.post<InboundRoute>("/inbound-routes", route);
+  const response = await api.post<InboundRoute>("/routes/inbound", route);
   return response.data;
 };
 
@@ -328,12 +389,15 @@ export const updateInboundRoute = async (
   id: string,
   route: InboundRoute
 ): Promise<InboundRoute> => {
-  const response = await api.put<InboundRoute>(`/inbound-routes/${id}`, route);
+  const response = await api.patch<InboundRoute>(
+    `/routes/inbound/${id}`,
+    route
+  );
   return response.data;
 };
 
 export const deleteInboundRoute = async (id: string): Promise<void> => {
-  await api.delete(`/inbound-routes/${id}`);
+  await api.delete(`/routes/inbound/${id}`);
 };
 
 // CDR API
@@ -344,19 +408,63 @@ export interface CDRParams {
   dst?: string;
   limit?: number;
   page?: number;
+  disposition?: string;
 }
 
 export interface CDRResponse {
-  cdrs: CDR[];
-  pagination: {
-    total: number;
-    page: number;
-    pages: number;
-  };
+  data: CDR[];
+  total: number;
+  page: number;
+  pages: number;
 }
 
 export const getCDRs = async (params: CDRParams): Promise<CDRResponse> => {
-  const response = await api.get<CDRResponse>("/cdrs", { params });
+  const response = await api.get<CDRResponse>("/cdr", { params });
+  return response.data;
+};
+
+export const getCDR = async (id: string): Promise<CDR> => {
+  const response = await api.get<CDR>(`/cdr/${id}`);
+  return response.data;
+};
+
+export const getCDRByUniqueId = async (uniqueid: string): Promise<CDR> => {
+  const response = await api.get<CDR>(`/cdr/uniqueid/${uniqueid}`);
+  return response.data;
+};
+
+export const getCDRStats = async (params: {
+  startDate?: string;
+  endDate?: string;
+  groupBy?: "day" | "hour" | "source" | "destination" | "disposition";
+}): Promise<any> => {
+  const response = await api.get("/cdr/stats", { params });
+  return response.data;
+};
+
+export const getRecentCDRs = async (limit?: number): Promise<CDR[]> => {
+  const response = await api.get<CDR[]>("/cdr/recent", { params: { limit } });
+  return response.data;
+};
+
+export const getTodayCDRs = async (): Promise<any> => {
+  const response = await api.get("/cdr/today");
+  return response.data;
+};
+
+export const getMostCalledDestinations = async (
+  limit?: number
+): Promise<any[]> => {
+  const response = await api.get<any[]>("/cdr/most-called", {
+    params: { limit },
+  });
+  return response.data;
+};
+
+export const getMostActiveCallers = async (limit?: number): Promise<any[]> => {
+  const response = await api.get<any[]>("/cdr/most-active-callers", {
+    params: { limit },
+  });
   return response.data;
 };
 
@@ -368,6 +476,11 @@ export const getAsteriskStatus = async (): Promise<any> => {
 
 export const getAsteriskChannels = async (): Promise<any> => {
   const response = await api.get("/asterisk/channels");
+  return response.data;
+};
+
+export const getExtensionStatus = async (extension: string): Promise<any> => {
+  const response = await api.get(`/asterisk/extension/${extension}/status`);
   return response.data;
 };
 
@@ -387,6 +500,7 @@ export interface OriginateCallParams {
   context?: string;
   priority?: number;
   variables?: Record<string, string>;
+  callerid?: string;
 }
 
 export const originateCall = async (
@@ -402,7 +516,7 @@ export const hangupChannel = async (channel: string): Promise<any> => {
 };
 
 export default {
-  login,
+  verifyExtension,
   getDashboard,
   getExtensions,
   getExtension,
@@ -419,6 +533,15 @@ export default {
   createQueue,
   updateQueue,
   deleteQueue,
+  getQueueStatus,
+  getAllQueueStatuses,
+  addQueueMember,
+  removeQueueMember,
+  pauseQueueMember,
+  unpauseQueueMember,
+  addDynamicQueueMember,
+  removeDynamicQueueMember,
+  resetQueueStats,
   getOutboundRoutes,
   getOutboundRoute,
   createOutboundRoute,
@@ -430,8 +553,16 @@ export default {
   updateInboundRoute,
   deleteInboundRoute,
   getCDRs,
+  getCDR,
+  getCDRByUniqueId,
+  getCDRStats,
+  getRecentCDRs,
+  getTodayCDRs,
+  getMostCalledDestinations,
+  getMostActiveCallers,
   getAsteriskStatus,
   getAsteriskChannels,
+  getExtensionStatus,
   executeCliCommand,
   reloadAsteriskModule,
   originateCall,

@@ -10,8 +10,8 @@ import { RoutesModule } from './routes/routes.module';
 import { CdrModule } from './cdr/cdr.module';
 import { AsteriskModule } from './asterisk/asterisk.module';
 import { SipLoggerModule } from './sip-logger/sip-logger.module';
-import { CrmIntegrationModule } from './crm-integration/crm-integration.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -35,8 +35,8 @@ import { DashboardModule } from './dashboard/dashboard.module';
     CdrModule,
     AsteriskModule,
     SipLoggerModule,
-    CrmIntegrationModule,
     DashboardModule,
+    AuthModule,
   ],
 })
 export class AppModule {}

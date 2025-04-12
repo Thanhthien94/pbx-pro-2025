@@ -13,11 +13,11 @@ import {
 } from '@nestjs/common';
 import { TrunksService } from './trunks.service';
 import { CreateTrunkDto } from './dto/create-trunk.dto';
-import { UpdateTrunkDto } from './dto/update-trunk.dto.ts';
-import { ApiKeyGuard } from '../auth/guards/api-key.guard';
+import { UpdateTrunkDto } from './dto/update-trunk.dto';
+import { ExtensionAuthGuard } from '../auth/guards/extension-auth.guard';
 
 @Controller('trunks')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ExtensionAuthGuard)
 export class TrunksController {
   constructor(private readonly trunksService: TrunksService) {}
 

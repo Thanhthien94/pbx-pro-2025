@@ -66,6 +66,22 @@ export class ExtensionsService {
     return extension;
   }
 
+  async findByExtensionNumber(extensionNumber: string): Promise<Extension> {
+    const extension = await this.extensionModel
+      .findOne({
+        extension: extensionNumber,
+      })
+      .exec();
+
+    if (!extension) {
+      throw new NotFoundException(
+        `Không tìm thấy extension với số ${extensionNumber}`,
+      );
+    }
+
+    return extension;
+  }
+
   async update(
     id: string,
     updateExtensionDto: UpdateExtensionDto,
@@ -129,79 +145,79 @@ export class ExtensionsService {
 
       // Tạo nội dung cho file sip.conf
       let sipConfContent = `[general]
-context=default
-allowoverlap=no
-udpbindaddr=0.0.0.0
-tcpbindaddr=0.0.0.0
-tcpenable=yes
-transport=udp,tcp
-srvlookup=yes
-realm=pbx.local
-useragent=NestPBX
-alwaysauthreject=yes
-rtcachefriends=yes
-rtsavesysname=yes
-rtupdate=yes
-rtautoclear=yes
-ignoreregexpire=no
-registertimeout=20
-registerattempts=10
-notifyringing=yes
-notifyhold=yes
-notifycid=yes
-callevents=yes
-allowsubscribe=yes
-subscribecontext=default
-language=en
-videosupport=yes
-disallow=all
-allow=alaw
-allow=ulaw
-allow=gsm
-allow=g722
-allow=h264
-allow=h263
-allow=h263p
-nat=force_rport,comedia
-directmedia=no
-
-; Mẫu SIP client
-[template-internal](!)
-type=friend
-host=dynamic
-context=internal
-disallow=all
-allow=alaw
-allow=ulaw
-allow=gsm
-nat=force_rport,comedia
-qualify=yes
-directmedia=no
-dtmfmode=auto
-call-limit=5
-videosupport=yes
-
-; Extension được tạo bởi NestJS API
-`;
+  context=default
+  allowoverlap=no
+  udpbindaddr=0.0.0.0
+  tcpbindaddr=0.0.0.0
+  tcpenable=yes
+  transport=udp,tcp
+  srvlookup=yes
+  realm=pbx.local
+  useragent=NestPBX
+  alwaysauthreject=yes
+  rtcachefriends=yes
+  rtsavesysname=yes
+  rtupdate=yes
+  rtautoclear=yes
+  ignoreregexpire=no
+  registertimeout=20
+  registerattempts=10
+  notifyringing=yes
+  notifyhold=yes
+  notifycid=yes
+  callevents=yes
+  allowsubscribe=yes
+  subscribecontext=default
+  language=en
+  videosupport=yes
+  disallow=all
+  allow=alaw
+  allow=ulaw
+  allow=gsm
+  allow=g722
+  allow=h264
+  allow=h263
+  allow=h263p
+  nat=force_rport,comedia
+  directmedia=no
+  
+  ; Mẫu SIP client
+  [template-internal](!)
+  type=friend
+  host=dynamic
+  context=internal
+  disallow=all
+  allow=alaw
+  allow=ulaw
+  allow=gsm
+  nat=force_rport,comedia
+  qualify=yes
+  directmedia=no
+  dtmfmode=auto
+  call-limit=5
+  videosupport=yes
+  
+  ; Extension được tạo bởi NestJS API
+  `;
 
       // Thêm các extension vào file cấu hình
       extensions.forEach((ext) => {
         sipConfContent += `
-[${ext.extension}](template-internal)
-callerid="${ext.name}" <${ext.extension}>
-secret=${ext.secret}
-mailbox=${ext.mailbox || ext.extension}
-${ext.email ? `email=${ext.email}` : ''}
-${ext.callGroup ? `callgroup=${ext.callGroup}` : ''}
-${ext.pickupGroup ? `pickupgroup=${ext.pickupGroup}` : ''}
-host=${ext.host || 'dynamic'}
-dtmfmode=${ext.dtmfMode || 'rfc2833'}
-transport=${ext.transport || 'udp'}
-nat=${ext.nat || 'yes'}
-call-limit=${ext.callLimit || 5}
-disallow=${ext.disallow || 'all'}
-allow=${ext.allow || 'ulaw,alaw,g722'}
-`;
+  [${ext.extension}](template-internal)
+  callerid="${ext.name}" <${ext.extension}>
+  secret=${ext.secret}
+  mailbox=${ext.mailbox || ext.extension}
+  ${ext.email ? `email=${ext.email}` : ''}
+  ${ext.callGroup ? `callgroup=${ext.callGroup}` : ''}
+  ${ext.pickupGroup ? `pickupgroup=${ext.pickupGroup}` : ''}
+  host=${ext.host || 'dynamic'}
+  dtmfmode=${ext.dtmfMode || 'rfc2833'}
+  transport=${ext.transport || 'udp'}
+  nat=${ext.nat || 'yes'}
+  call-limit=${ext.callLimit || 5}
+  disallow=${ext.disallow || 'all'}
+  allow=${ext.allow || 'ulaw,alaw,g722'}
+  `;
       });
 
       // Ghi file sip.conf
@@ -222,5 +238,162 @@ allow=${ext.allow || 'ulaw,alaw,g722'}
     }
   }
 
-  private updateExtensionsConf(): void {}
+  private updateExtensionsConf(extensions: Extension[]): void {
+    try {
+      // Đường dẫn đến file extensions.conf
+      const extensionsConfPath = path.join(this.configDir, 'extensions.conf');
+
+      // Kiểm tra xem file có tồn tại không, nếu không thì tạo mới
+      let extensionsConfContent = '';
+
+      if (fs.existsSync(extensionsConfPath)) {
+        // Đọc nội dung file hiện tại
+        extensionsConfContent = fs.readFileSync(extensionsConfPath, 'utf8');
+      } else {
+        // Tạo nội dung mặc định cho file mới
+        extensionsConfContent = `[general]
+  static=yes
+  writeprotect=no
+  autofallthrough=yes
+  extenpatternmatchnew=yes
+  clearglobalvars=no
+  
+  [globals]
+  CONSOLE=Console/dsp
+  IAXINFO=guest
+  TRUNK=DAHDI/G2
+  TRUNKMSD=1
+  
+  [default]
+  exten => s,1,Verbose(1,Unrouted call handler)
+  exten => s,n,Answer()
+  exten => s,n,Wait(1)
+  exten => s,n,Playback(tt-weasels)
+  exten => s,n,Hangup()
+  
+  exten => _.,1,Verbose(1,Catch-all extension)
+  exten => _.,n,Answer()
+  exten => _.,n,Wait(1)
+  exten => _.,n,Playback(invalid)
+  exten => _.,n,Hangup()
+  
+  `;
+      }
+
+      // Tìm hoặc tạo context [internal]
+      const internalContextMarker = '[internal]';
+      let internalContextContent = `
+  ; Internal extensions pattern
+  `;
+
+      // Thêm pattern cho mỗi extension dựa vào các extension hiện có
+      extensions.forEach((ext) => {
+        internalContextContent += `exten => ${ext.extension},1,NoOp(Dialing extension ${ext.extension})
+  exten => ${ext.extension},n,Dial(SIP/${ext.extension},20)
+  exten => ${ext.extension},n,Hangup()
+  
+  `;
+      });
+
+      // Thêm các tính năng nâng cao
+      internalContextContent += `
+  ; Voicemail access
+  exten => *98,1,NoOp(Voicemail)
+  exten => *98,n,VoiceMailMain(\${CALLERID(num)}@default)
+  exten => *98,n,Hangup()
+  
+  ; Echo Test
+  exten => *43,1,NoOp(Echo Test)
+  exten => *43,n,Answer()
+  exten => *43,n,Playback(demo-echotest)
+  exten => *43,n,Echo()
+  exten => *43,n,Playback(demo-echodone)
+  exten => *43,n,Hangup()
+  
+  ; Time
+  exten => *60,1,NoOp(Time)
+  exten => *60,n,Answer()
+  exten => *60,n,Wait(1)
+  exten => *60,n,SayUnixTime()
+  exten => *60,n,Hangup()
+  
+  ; Call Pickup
+  exten => *8,1,NoOp(Call Pickup)
+  exten => *8,n,PickUp()
+  exten => *8,n,Hangup()
+  
+  `;
+
+      // Kiểm tra xem context internal đã tồn tại chưa
+      let newExtensionsConfContent = '';
+      const internalContextStart = extensionsConfContent.indexOf(
+        internalContextMarker,
+      );
+
+      if (internalContextStart !== -1) {
+        // Tìm điểm kết thúc của context internal
+        let internalContextEnd = extensionsConfContent.indexOf(
+          '[',
+          internalContextStart + 1,
+        );
+
+        if (internalContextEnd === -1) {
+          // Context internal là context cuối cùng
+          internalContextEnd = extensionsConfContent.length;
+        }
+
+        // Thay thế nội dung của context internal
+        newExtensionsConfContent =
+          extensionsConfContent.substring(0, internalContextStart) +
+          internalContextMarker +
+          internalContextContent +
+          extensionsConfContent.substring(internalContextEnd);
+      } else {
+        // Thêm context internal vào cuối file
+        newExtensionsConfContent =
+          extensionsConfContent +
+          internalContextMarker +
+          internalContextContent;
+      }
+
+      // Tìm hoặc tạo context [from-trunk]
+      const fromTrunkContextMarker = '[from-trunk]';
+      const fromTrunkContent = `
+  ; Inbound calls from trunks will be handled by this context
+  exten => _X.,1,NoOp(Inbound call from trunk)
+  exten => _X.,n,Set(CALLERID(name)=\${CALLERID(num)})
+  exten => _X.,n,Goto(internal,100,1)  ; Redirect to the operator/receptionist
+  `;
+
+      // Kiểm tra xem context from-trunk đã tồn tại chưa
+      const fromTrunkContextStart = newExtensionsConfContent.indexOf(
+        fromTrunkContextMarker,
+      );
+
+      if (fromTrunkContextStart === -1) {
+        // Thêm context from-trunk vào cuối file
+        newExtensionsConfContent += fromTrunkContextMarker + fromTrunkContent;
+      }
+
+      // Ghi file
+      fs.writeFileSync(extensionsConfPath, newExtensionsConfContent);
+      this.logger.log(`Đã cập nhật file ${extensionsConfPath}`);
+
+      // Reload dialplan
+      this.asteriskService
+        .reloadModule('dialplan')
+        .then(() => {
+          this.logger.log('Đã reload module Dialplan trong Asterisk');
+        })
+        .catch((err) => {
+          this.logger.error(`Lỗi khi reload dialplan: ${err.message}`);
+        });
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error(
+        `Lỗi khi cập nhật file extensions.conf: ${err.message}`,
+      );
+      throw error;
+    }
+  }
 }

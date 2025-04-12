@@ -14,10 +14,10 @@ import {
 import { ExtensionsService } from './extensions.service';
 import { CreateExtensionDto } from './dto/create-extension.dto';
 import { UpdateExtensionDto } from './dto/update-extension.dto';
-import { BypassAuthGuard } from '../auth/guards/bypass-auth.guard';
+import { ExtensionAuthGuard } from '../auth/guards/extension-auth.guard';
 
 @Controller('extensions')
-@UseGuards(BypassAuthGuard) // Thay thế ApiKeyGuard bằng BypassAuthGuard
+@UseGuards(ExtensionAuthGuard)
 export class ExtensionsController {
   constructor(private readonly extensionsService: ExtensionsService) {}
 

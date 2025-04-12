@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Trunk, TrunkDocument } from './schemas/trunk.schema';
 import { CreateTrunkDto } from './dto/create-trunk.dto';
-import { UpdateTrunkDto } from './dto/update-trunk.dto.ts';
+import { UpdateTrunkDto } from './dto/update-trunk.dto';
 import { AsteriskService } from '../asterisk/asterisk.service';
 import { ConfigService } from '@nestjs/config';
 
@@ -86,6 +86,10 @@ export class TrunksService {
     const updatedTrunk = await this.trunkModel
       .findByIdAndUpdate(id, updateTrunkDto, { new: true })
       .exec();
+
+    if (!updatedTrunk) {
+      throw new NotFoundException(`Không tìm thấy trunk với id ${id}`);
+    }
 
     // Cập nhật cấu hình Asterisk
     await this.updateAsteriskConfig();
